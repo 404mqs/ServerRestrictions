@@ -7,6 +7,8 @@ using Rocket.Unturned.Enumerations;
 using Rocket.Unturned.Events;
 using Rocket.Unturned.Player;
 using SDG.Unturned;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Logger = Rocket.Core.Logging.Logger;
@@ -71,11 +73,20 @@ namespace ServerRestrictor
 
                     else
                     {
-                        ChatManager.serverSendMessage(MQSPlugin.Instance.Translate("WordBlacklisted"), MessageColor, null, player, EChatMode.SAY, "", true);
-                        Logger.Log(MQSPlugin.Instance.Translate("ConsoleWordBlacklistLog", converted.DisplayName));
+                        if (message.Message == null)
+                        {
+                            ChatManager.serverSendMessage(MQSPlugin.Instance.Translate("WordBlacklisted"), MessageColor, null, player, EChatMode.SAY, "", true);
+                            Logger.Log(MQSPlugin.Instance.Translate("ConsoleWordBlacklistLog", converted.DisplayName));
+                        }
+
+                        else
+                        {
+                            UnturnedChat.Say(converted, message.Message.Replace("!NAME!", converted.DisplayName), MessageColor, true);
+                            Logger.Log(message.Message.Replace("!NAME!", converted.DisplayName));
+                        }
                         isVisible = false;
                     }
-                }   
+                }
             }
         }
 
@@ -88,7 +99,7 @@ namespace ServerRestrictor
 
             if (player.IsAdmin && Configuration.Instance.IgnoreAdmins || player.GetPermissions().Any(x => x.Name == "ignore.*"))
             {
-                    return;
+                return;
             }
 
             if (Configuration.Instance.RestrictedNames.Any(n => playername.ToLower().Contains(n.name.ToLower())))
@@ -100,8 +111,18 @@ namespace ServerRestrictor
 
                 else
                 {
-                    player.Kick(MQSPlugin.Instance.Translate("NameBlacklist"));
-                    Logger.Log(MQSPlugin.Instance.Translate("ConsoleNameBlacklistKickLog", player.DisplayName));
+                    if (name.Message == null)
+                    {
+                        player.Kick(MQSPlugin.Instance.Translate("NameBlacklist"));
+                        Logger.Log(MQSPlugin.Instance.Translate("ConsoleNameBlacklistKickLog", player.DisplayName));
+                    }
+
+                    else
+                    {
+                        player.Kick(name.Message.Replace("!NAME!", playername));
+                        Logger.Log(name.Message.Replace("!NAME!", playername));
+                    }
+
                 }
             }
         }
@@ -127,12 +148,21 @@ namespace ServerRestrictor
                 else
                 {
                     player.Inventory.removeItem((byte)inventoryGroup, inventoryIndex);
-                    UnturnedChat.Say(player, MQSPlugin.Instance.Translate("ItemBlacklisted"), MessageColor, true);
-                    Logger.Log(MQSPlugin.Instance.Translate("ConsoleItemBlacklistLog", player.DisplayName));
+                    if (item.Message == null)
+                    {
+                        UnturnedChat.Say(player, MQSPlugin.Instance.Translate("ItemBlacklisted"), MessageColor, true);
+                        Logger.Log(MQSPlugin.Instance.Translate("ConsoleItemBlacklistLog", player.DisplayName));
+                    }
+
+                    else
+                    {
+                        UnturnedChat.Say(player, item.Message.Replace("!NAME!", player.DisplayName), MessageColor, true);
+                        Logger.Log(item.Message.Replace("!NAME!", player.DisplayName));
+                    }
                 }
             }
         }
-        
+
 
         private void onEnterVehicleRequested(Player player, InteractableVehicle vehicle, ref bool shouldAllow)
         {
@@ -145,7 +175,7 @@ namespace ServerRestrictor
                 return;
             }
 
-            if (Configuration.Instance.RestrictedVehicles.Any(x => x.VehicleId == vehicle.id)) 
+            if (Configuration.Instance.RestrictedVehicles.Any(x => x.VehicleId == vehicle.id))
             {
                 if (driver.GetPermissions().Any(x => x.Name == car.Ignore))
                 {
@@ -155,11 +185,20 @@ namespace ServerRestrictor
                 else
                 {
                     shouldAllow = false;
-                    UnturnedChat.Say(driver, MQSPlugin.Instance.Translate("VehicleBlacklist"), MessageColor, true);
-                    Logger.Log(MQSPlugin.Instance.Translate("ConsoleVehicleBlacklistLog", driver.DisplayName));
+
+                    if (car.Message == null)
+                    {
+                        UnturnedChat.Say(driver, MQSPlugin.Instance.Translate("VehicleBlacklist"), MessageColor, true);
+                        Logger.Log(MQSPlugin.Instance.Translate("ConsoleVehicleBlacklistLog", driver.DisplayName));
+                    }
+
+                    else
+                    {
+                        UnturnedChat.Say(driver, car.Message.Replace("!NAME!", driver.DisplayName), MessageColor, true);
+                        Logger.Log(car.Message.Replace("!NAME!", driver.DisplayName));
+                    }
                 }
             }
-
         }
 
         private void OnWear(UnturnedPlayer player, UnturnedPlayerEvents.Wearables wear, ushort id, byte? quality)
@@ -179,36 +218,48 @@ namespace ServerRestrictor
                 }
 
                 else
-                { 
-                     UnturnedChat.Say(player, MQSPlugin.Instance.Translate("ItemBlacklisted"), MessageColor, true);
-                     Logger.Log(MQSPlugin.Instance.Translate("ConsoleItemBlacklistLog", player.DisplayName));
+                {
 
-                     switch(wear)
-                     {
+                    switch (wear)
+                    {
+                       
                         case UnturnedPlayerEvents.Wearables.Backpack:
-                            player.Player.clothing.askWearBackpack(0, 0, new byte[0], false);
-                        break;
+                            StartCoroutine(InvokeOnNextFrame(() =>
+                            player.Player.clothing.askWearBackpack(0, 0, new byte[0], false)));
+                            break;
                         case UnturnedPlayerEvents.Wearables.Glasses:
-                            player.Player.clothing.askWearGlasses(0, 0, new byte[0], false);
-                        break;
+                            StartCoroutine(InvokeOnNextFrame(() =>
+                            player.Player.clothing.askWearGlasses(0, 0, new byte[0], false)));
+                            break;
                         case UnturnedPlayerEvents.Wearables.Hat:
-                            player.Player.clothing.askWearHat(0, 0, new byte[0], false);
-                        break;
+                            StartCoroutine(InvokeOnNextFrame(() =>
+                            player.Player.clothing.askWearHat(0, 0, new byte[0], false)));
+                            break;
                         case UnturnedPlayerEvents.Wearables.Mask:
-                            player.Player.clothing.askWearMask(0, 0, new byte[0], false);
-                        break;
+                            StartCoroutine(InvokeOnNextFrame(() =>
+                            player.Player.clothing.askWearMask(0, 0, new byte[0], false)));
+                            break;
                         case UnturnedPlayerEvents.Wearables.Pants:
-                            player.Player.clothing.askWearPants(0, 0, new byte[0], false);
-                        break;
+                            StartCoroutine(InvokeOnNextFrame(() =>
+                            player.Player.clothing.askWearPants(0, 0, new byte[0], false)));
+                            break;
                         case UnturnedPlayerEvents.Wearables.Shirt:
-                            player.Player.clothing.askWearShirt(0, 0, new byte[0], false);
-                        break;
+                            StartCoroutine(InvokeOnNextFrame(() =>
+                            player.Player.clothing.askWearShirt(0, 0, new byte[0], false)));
+                            break;
                         case UnturnedPlayerEvents.Wearables.Vest:
-                            player.Player.clothing.askWearVest(0, 0, new byte[0], false);
-                        break;
-                     }
+                            StartCoroutine(InvokeOnNextFrame(() =>
+                            player.Player.clothing.askWearVest(0, 0, new byte[0], false)));
+                            break;
+                    }
                 }
             }
+        }
+
+        private IEnumerator InvokeOnNextFrame(System.Action action)
+        {
+            yield return new WaitForFixedUpdate();
+            action();
         }
 
         public override TranslationList DefaultTranslations => new TranslationList()
